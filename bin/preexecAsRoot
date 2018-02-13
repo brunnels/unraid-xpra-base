@@ -1,7 +1,6 @@
 #!/bin/sh
 /etc/init.d/dbus restart
-sleep 5
 /etc/init.d/cups restart
-/etc/init.d/avahi-daemon restart
+
 
 

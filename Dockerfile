@@ -2,52 +2,54 @@ FROM debian:stretch-slim
 
 RUN echo 'deb http://deb.debian.org/debian stretch-backports main' > /etc/apt/sources.list.d/backports.list && \
     apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -q -y gnupg && \
-    gpg --keyserver pgpkeys.mit.edu --recv-key 18ADB31CF18AD6BB && \
+    export DEBIAN_FRONTEND=noninteractive && \
+    apt-get install -q -y --no-install-recommends dirmngr gnupg && \
+    gpg --keyserver hkp://pool.sks-keyservers.net --recv-key 18ADB31CF18AD6BB && \
     gpg -a --export 18ADB31CF18AD6BB | apt-key add - && \
     echo "deb http://xpra.org/ stretch main" > /etc/apt/sources.list.d/xpra.list && \
-    export DEBIAN_FRONTEND=noninteractive && \
     apt-get update && \
-    apt-get install -q -y \
+    apt-get install -q -y --no-install-recommends \
     gosu \
     dbus-x11 \
-    x264 \
-    x265 \
+    openssl \
+    xauth \
     xpra \
+    cups \
+    python-cups \
+    python-yaml \
     pulseaudio \
     pulseaudio-utils \
-    python-mutagen \
-    python-dbus \
-    python-gi \
-    python-gi-cairo \
-    python-dbus \
-    python-opengl \
-    python-gtkglext1 \
-    python-lz4 \
-    python-lzo \
-    python-pil \
-    python-avahi \
-    python-cups \
+    gir1.2-gtk-3.0 \
+    gstreamer1.0-plugins-base \
+    gstreamer1.0-plugins-good \
+    gstreamer1.0-pulseaudio \
     python-gst-1.0 \
-    python-opencv \
-    python-netifaces \
     python-yaml \
-    python-pip && \
+    python-dbus \
+    python-cryptography \
+    python-lzo \
+    python-netifaces \
+    python-pyinotify \
+    python-websockify \
+    websockify \
+    libjs-jquery \
+    websockify-common && \
     apt-get clean && \
-    pip install \
-    python-uinput && \
     rm -rf /var/lib/apt/lists/* && \
-    rm -rf /tmp/*
-
-RUN mkdir -m 770 /var/run/xpra && \
+    rm -rf /tmp/* && \
+    mkdir -m 770 /var/run/xpra && \
     chgrp xpra /var/run/xpra
 
-ENV GUEST_USER=user \
-    GUEST_UID=9001 \
-    GUEST_GROUP=user \
-    GUEST_GID=9001 \
-    DISPLAY=:0 \
-    XPRA_OPTIONS=
+ENV DISPLAY=":14"            \
+    XPRA_OPTIONS=""          \
+    XPRA_TCP_PORT="14500"    \
+    XPRA_HTML="no"
+
+ENV PUSER="nobody"              \
+    PUID="99"                   \
+    PGROUP="users"              \
+    PGID="100"                  \
+    PUSER_HOME="/home/$PUSER"
 
 ADD bin/ /docker/
 RUN chmod a+x /docker/*

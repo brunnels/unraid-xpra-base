@@ -1,32 +1,31 @@
 #!/bin/sh
 
-_passwd=`getent passwd $GUEST_USER`
+userdel -r nobody > /dev/null 2>&1
+
+_passwd=`getent passwd $PUSER`
 if [ "$_passwd" != "" ]; then
-    GUEST_UID=`echo $_passwd | cut -d: -f 3`
-    GUEST_GID=`echo $_passwd | cut -d: -f4`
-    GUEST_GROUP=`getent group $GUEST_GID | cut -d: -f 1`
+    PUID=`echo $_passwd | cut -d: -f 3`
+    PGID=`echo $_passwd | cut -d: -f4`
+    PGROUP=`getent group $PGID | cut -d: -f 1`
     HOME=`echo $_passwd | cut -d: -f 6`
 else
-    _group=`getent group $GUEST_GROUP`
+    _group=`getent group $PGROUP`
     if [ "$_group" != "" ]; then
-        GUEST_GID=`echo $_group | cut -d: -f 3`
+        PGID=`echo $_group | cut -d: -f 3`
     else
-        groupadd -g $GUEST_GID $GUEST_GROUP
+        groupadd -g $PGID $PGROUP
     fi
-    HOME=${GUEST_HOME:-/home/$GUEST_USER}
-    useradd -u $GUEST_UID -g $GUEST_GID -G xpra -d $HOME -om -s /bin/bash $GUEST_USER
-    mkdir -m 700 -p /var/run/user/$GUEST_UID
-    chown $GUEST_UID:$GUEST_GID $HOME /var/run/user/$GUEST_UID
+    HOME=${PUSER_HOME:-/home/$PUSER}
+    useradd -u $PUID -g $PGID -G xpra -d $HOME -om -s /bin/bash $PUSER
+    mkdir -m 700 -p /var/run/user/$PUID
+    chown $PUID:$PGID $HOME /var/run/user/$PUID
     for _skel in /etc/skel/.*; do
         _file=`basename $_skel`
-        [ "$_file" != . -a "$_file" != .. ] && /usr/sbin/gosu $GUEST_USER cp -p /etc/skel/$_file $HOME
+        [ "$_file" != . -a "$_file" != .. ] && /usr/sbin/gosu $PUSER cp -p /etc/skel/$_file $HOME
     done
 fi
 
-for group in audio video; do
-  gid=$(getent group $group | cut -d: -f3)
-  [ -z "$gid" ] || __docker_flags+=" --group-add=$gid"
-done
+usermod -a -G lpadmin $PUSER
 
 rm -f /tmp/.X100-lock
 
@@ -38,4 +37,14 @@ for _arg in "$@"; do
     _args=$_args`echo $_arg | sed -r -e 's/(['\'\"\\\`' \t\n\$&|;<>%!#\\\\(){}[]|])/\\\\\1/g'`
 done
 
-exec /usr/sbin/gosu $GUEST_USER /usr/bin/xpra start $DISPLAY --no-daemon --webcam=no $XPRA_OPTIONS --start-child="$_args"
+/usr/sbin/gosu $PUSER pulseaudio --start > /dev/null 2>&1
+
+exec /usr/sbin/gosu ${PUSER} /usr/bin/xpra start ${DISPLAY}\
+  --no-daemon\
+  --mdns=no\
+  --webcam=no\
+  --tcp-auth=env\
+  --html="${XPRA_HTML}"\
+  --bind-tcp="0.0.0.0:${XPRA_TCP_PORT}"\
+  ${XPRA_OPTIONS}\
+  --start-child="$_args"\
